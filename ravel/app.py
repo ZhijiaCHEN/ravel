@@ -7,6 +7,7 @@ import importlib
 import os
 import re
 import sys
+import time
 import tempfile
 
 import psycopg2
@@ -15,6 +16,7 @@ from sqlparse.tokens import Keyword
 
 import ravel.util
 from ravel.log import logger
+from ravel.cmdlog import cmdLogger
 
 def mk_watchcmd(db, args):
     """Construct a watch command for a psql query given a list of tables
@@ -132,11 +134,38 @@ class AppConsole(cmd.Cmd):
         self.db = db
         self.env = env
         self.components = components
+        self.logOn = False
         cmd.Cmd.__init__(self)
 
     def emptyline(self):
         "Don't repeat the last line when hitting return on empty line"
         return
+
+    def onecmd(self, line):
+        "Run command and report execution time for each execution line"  
+        if line:
+            if self.logOn:
+                cmdLogger.logline('cmd: '+line)
+                startTime = time.time()                
+                stop = cmd.Cmd.onecmd(self, line)
+                endTime = time.time()
+                elapsed = endTime - startTime
+                logger.info("Time: {0}ms".format(round(elapsed * 1000, 3)))
+                cmdLogger.logline('start time: '+str(startTime))
+                cmdLogger.logline('end time: '+str(endTime))
+                return stop
+            else:
+                return cmd.Cmd.onecmd(self, line)
+
+    def do_timelogger(self, line):
+        if str(line).lower() == 'on':
+            self.logOn = True
+            logger.info('Time logger on.')
+        elif str(line).lower() == 'off':
+            self.logOn = False
+            logger.info('Time logger off.')
+        else:
+            logger.info("Input 'on' to turn on time logger and 'off' to turn it off.")
 
     def do_list(self, line):
         "List application components"

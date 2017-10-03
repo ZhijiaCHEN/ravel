@@ -19,6 +19,7 @@ from ravel.env import Environment
 from ravel.log import logger
 from ravel.of import PoxInstance
 from ravel.util import Config, resource_file
+from ravel.cmdlog import cmdLogger
 
 class RavelConsole(cmd.Cmd):
     "Command line interface for Ravel."
@@ -30,9 +31,9 @@ class RavelConsole(cmd.Cmd):
         self.env = env
         self.intro = "RavelConsole: interactive console for Ravel.\n" \
                      "Configuration:\n" + self.env.pprint()
-
-        cmd.Cmd.__init__(self)
         self.logOn = False
+        cmd.Cmd.__init__(self)
+        
     def default(self, line):
         "Check loaded applications before raising unknown command error"
 
@@ -55,10 +56,14 @@ class RavelConsole(cmd.Cmd):
         "Run command and report execution time for each execution line"  
         if line:
             if self.logOn:
-                elapsed = time.time()
+                cmdLogger.logline('cmd: '+line)
+                startTime = time.time()                
                 stop = cmd.Cmd.onecmd(self, line)
-                elapsed = time.time() - elapsed
-                print "\nTime: {0}ms".format(round(elapsed * 1000, 3))
+                endTime = time.time()
+                elapsed = startTime - endTime
+                logger.info("Time: {0}ms".format(round(elapsed * 1000, 3)))
+                cmdLogger.logline('start time: '+str(startTime))
+                cmdLogger.logline('end time: '+str(endTime))
                 return stop
             else:
                 return cmd.Cmd.onecmd(self, line)
@@ -66,8 +71,10 @@ class RavelConsole(cmd.Cmd):
     def do_timelogger(self, line):
         if str(line).lower() == 'on':
             self.logOn = True
+            logger.info('Time logger on.')
         elif str(line).lower() == 'off':
             self.logOn = False
+            logger.info('Time logger off.')
         else:
             logger.info("Input 'on' to turn on time logger and 'off' to turn it off.")
     def do_apps(self, line):
