@@ -145,27 +145,27 @@ class AppConsole(cmd.Cmd):
         "Run command and report execution time for each execution line"  
         if line:
             if self.logOn:
-                cmdLogger.logline('cmd: '+line)
                 startTime = time.time()
                 stop = cmd.Cmd.onecmd(self, line)
                 endTime = time.time()
-                elapsed = endTime - startTime
-                logger.info("Time: {0}ms".format(round(elapsed * 1000, 3)))
-                cmdLogger.logline('start time: '+str(startTime))
-                cmdLogger.logline('end time: '+str(endTime))
+                elapsed = round((endTime - startTime)*1000, 3)
+                cmdLogger.logline('cmd: '+line)
+                logger.info("Execution time: {0}ms".format(elapsed))
+                cmdLogger.logline('start time: {0}'.format(time.asctime(time.localtime(startTime))))
+                cmdLogger.logline('time span: {0}ms'.format(elapsed))
                 return stop
             else:
                 return cmd.Cmd.onecmd(self, line)
 
-    def do_timelogger(self, line):
+    def do_cmdlogger(self, line):
         if str(line).lower() == 'on':
             self.logOn = True
-            logger.info('Time logger on.')
+            logger.info('Cmd logger on.')
         elif str(line).lower() == 'off':
             self.logOn = False
-            logger.info('Time logger off.')
+            logger.info('Cmd logger off.')
         else:
-            logger.info("Input 'on' to turn on time logger and 'off' to turn it off.")
+            logger.info("Input 'on' to turn on cmd logger and 'off' to turn it off.")
 
     def do_list(self, line):
         "List application components"
