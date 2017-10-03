@@ -32,7 +32,7 @@ class RavelConsole(cmd.Cmd):
                      "Configuration:\n" + self.env.pprint()
 
         cmd.Cmd.__init__(self)
-
+        self.logOn = False
     def default(self, line):
         "Check loaded applications before raising unknown command error"
 
@@ -51,6 +51,25 @@ class RavelConsole(cmd.Cmd):
         "Don't repeat the last line when hitting return on empty line"
         return
 
+    def onecmd(self, line):
+        "Run command and report execution time for each execution line"  
+        if line:
+            if self.logOn:
+                elapsed = time.time()
+                stop = cmd.Cmd.onecmd(self, line)
+                elapsed = time.time() - elapsed
+                print "\nTime: {0}ms".format(round(elapsed * 1000, 3))
+                return stop
+            else:
+                return cmd.Cmd.onecmd(self, line)
+
+    def do_timelogger(self, line):
+        if str(line).lower() == 'on':
+            self.logOn = True
+        elif str(line).lower() == 'off':
+            self.logOn = False
+        else:
+            logger.info("Input 'on' to turn on time logger and 'off' to turn it off.")
     def do_apps(self, line):
         "List available applications and their status"
         for app in self.env.apps.values():
