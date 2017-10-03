@@ -146,7 +146,7 @@ class AppConsole(cmd.Cmd):
         if line:
             if self.logOn:
                 cmdLogger.logline('cmd: '+line)
-                startTime = time.time()                
+                startTime = time.time()
                 stop = cmd.Cmd.onecmd(self, line)
                 endTime = time.time()
                 elapsed = endTime - startTime

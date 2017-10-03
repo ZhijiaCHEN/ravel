@@ -57,10 +57,10 @@ class RavelConsole(cmd.Cmd):
         if line:
             if self.logOn:
                 cmdLogger.logline('cmd: '+line)
-                startTime = time.time()                
+                startTime = time.time()
                 stop = cmd.Cmd.onecmd(self, line)
                 endTime = time.time()
-                elapsed = startTime - endTime
+                elapsed = endTime - startTime
                 logger.info("Time: {0}ms".format(round(elapsed * 1000, 3)))
                 cmdLogger.logline('start time: '+str(startTime))
                 cmdLogger.logline('end time: '+str(endTime))
