@@ -19,6 +19,7 @@ from ravel.env import Environment
 from ravel.log import logger
 from ravel.of import PoxInstance
 from ravel.util import Config, resource_file
+from ravel.cmdlog import cmdLogger
 
 class RavelConsole(cmd.Cmd):
     "Command line interface for Ravel."
@@ -35,6 +36,7 @@ class RavelConsole(cmd.Cmd):
 
         cmd.Cmd.__init__(self)
         self.env.set_cli(self)
+        self.logOn = False
 
     def default(self, line):
         "Check loaded applications before raising unknown command error"
@@ -54,6 +56,22 @@ class RavelConsole(cmd.Cmd):
                 self.env.loaded["orch"].console.onecmd("run")
         else:
             print "*** Unknown command:", line
+
+    def onecmd(self, line):
+        "Run command and report execution time for each execution line"  
+        if line:
+            if self.logOn:
+                startTime = time.time()
+                stop = cmd.Cmd.onecmd(self, line)
+                endTime = time.time()
+                elapsed = round((endTime - startTime)*1000, 3)
+                cmdLogger.logline('cmd: '+line)
+                logger.info("Execution time: {0}ms".format(elapsed))
+                cmdLogger.logline('start time: {0}'.format(time.asctime(time.localtime(startTime))))
+                cmdLogger.logline('time span: {0}ms'.format(elapsed))
+                return stop
+            else:
+                return cmd.Cmd.onecmd(self, line)
 
     def emptyline(self):
         "Don't repeat the last line when hitting return on empty line"
@@ -102,6 +120,16 @@ class RavelConsole(cmd.Cmd):
 
                 # may need to wait for flows/database changes
                 time.sleep(0.5)
+
+    def do_cmdlogger(self, line):
+        if str(line).lower() == 'on':
+            self.logOn = True
+            logger.info('Cmd logger on.')
+        elif str(line).lower() == 'off':
+            self.logOn = False
+            logger.info('Cmd logger off.')
+        else:
+            logger.info("Input 'on' to turn on cmd logger and 'off' to turn it off.")
 
     def do_apps(self, line):
         "List available applications and their status"
