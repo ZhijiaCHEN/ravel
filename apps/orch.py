@@ -172,7 +172,7 @@ class OrchConsole(AppConsole):
         for app in [x for x in ordering if x != "routing"]:
             sql += ptable_template.format(app)
             try:
-                self.db.cursor.execute("SELECT violation FROM app_violation WHERE app = {0};".format(app))
+                self.db.cursor.execute("SELECT violation FROM app_violation WHERE app = '{0}';".format(app))
                 violations = self.db.cursor.fetchall()
                 if len(violations) > 0:
                     vtable = violations[0][0]
