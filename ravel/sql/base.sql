@@ -395,3 +395,12 @@ CREATE TRIGGER tp_up_spv_trigger
        FOR EACH ROW
        EXECUTE PROCEDURE tp2spv_fun();
 
+------------------------------------------------------------
+-- APPLICATION VIOLATION VIEWS/TABLES
+------------------------------------------------------------
+DROP TABLE IF EXISTS app_violation CASCADE;
+CREATE TABLE app_violation (
+       app      VARCHAR,
+       violation      VARCHAR
+);
+CREATE INDEX ON app_violation(app);

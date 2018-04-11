@@ -145,6 +145,8 @@ class OrchConsole(AppConsole):
         """Start one or more applications with orchestration
            Usage: load [app1] [app2] ... (priority: low -> high)"""
         ordering = [app.lower() for app in line.split()]
+        if len(ordering) == 0:
+            return
         for app in ordering:
             if app.lower() not in self.env.apps:
                 print "Unrecognized app", app
@@ -168,8 +170,18 @@ class OrchConsole(AppConsole):
 
         sql = ""
         for app in [x for x in ordering if x != "routing"]:
-            vtable = "{0}_violation".format(app)
             sql += ptable_template.format(app)
+            try:
+                self.db.cursor.execute("SELECT violation FROM app_violation WHERE app = {0};".format(app))
+                violations = self.db.cursor.fetchall()
+                if len(violations) > 0:
+                    vtable = violations[0][0]
+                    for v in violations[1:]:
+                        vtable += "DELETE FROM {0};".format(v[0])
+                else:
+                    vtable = "{0}_violation".format(app)
+            except Exception, e:
+                print e
             sql += runrule_template.format(app, vtable)
 
         if "routing" in ordering:
