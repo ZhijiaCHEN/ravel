@@ -177,7 +177,7 @@ class OrchConsole(AppConsole):
                 if len(violations) > 0:
                     vtable = violations[0][0]
                     for v in violations[1:]:
-                        vtable += "DELETE FROM {0};".format(v[0])
+                        vtable += "; DELETE FROM {0}".format(v[0])
                 else:
                     vtable = "{0}_violation".format(app)
             except Exception, e:
