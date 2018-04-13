@@ -214,6 +214,10 @@ class OrchConsole(AppConsole):
         self.do_reset("")
         apps = line.split()
         for app in apps:
+            try:
+                self.db.cursor.execute("DELETE FROM app_violation WHERE app = {0}".format(app))
+            except Exception, e:
+                print e
             self.ordering.remove(app.lower())
             if app in self.env.apps:
                 self.env.unload_app(app)
