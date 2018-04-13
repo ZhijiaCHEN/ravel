@@ -404,3 +404,16 @@ CREATE TABLE app_violation (
        violation      VARCHAR
 );
 CREATE INDEX ON app_violation(app);
+
+------------------------------------------------------------
+-- MY EXPERIMENT RECHABILITY MATRIX TABLE
+------------------------------------------------------------
+DROP TABLE IF EXISTS my_rm CASCADE;
+CREATE TABLE my_rm (
+       fid      integer,
+       src      integer,
+       dst      integer,
+       FW       integer,
+       PRIMARY KEY (fid)
+);
+CREATE INDEX ON my_rm (fid,src,dst);
