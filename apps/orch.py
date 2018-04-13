@@ -215,7 +215,7 @@ class OrchConsole(AppConsole):
         apps = line.split()
         for app in apps:
             try:
-                self.db.cursor.execute("DELETE FROM app_violation WHERE app = {0}".format(app))
+                self.db.cursor.execute("DELETE FROM app_violation WHERE app = '{0}'".format(app))
             except Exception, e:
                 print e
             self.ordering.remove(app.lower())
