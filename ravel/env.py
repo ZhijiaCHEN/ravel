@@ -59,6 +59,8 @@ class Environment(object):
             ravel.util.update_trigger_path(ravel.db.TOPO_SQL,
                                            ravel.util.resource_file())
             self.db.load_schema(ravel.db.TOPO_SQL)
+
+            self.db.load_schema(ravel.db.AUXILIARY_FUN_SQL)
         else:
             logger.debug("connecting to existing db, skipping load_topo()")
 
