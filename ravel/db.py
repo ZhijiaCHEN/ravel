@@ -13,6 +13,7 @@ BASE_SQL = resource_file("ravel/sql/base.sql")
 FLOW_SQL = resource_file("ravel/sql/flows.sql")
 NOFLOW_SQL = resource_file("ravel/sql/noflows.sql")
 TOPO_SQL = resource_file("ravel/sql/topo.sql")
+AUXILIARY_FUN_SQL = resource_file("ravel/sql/auxiliary_functions.sql")
 
 class RavelDb():
     """A representation of Ravel's backend PostgreSQL database."""
