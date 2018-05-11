@@ -1,5 +1,6 @@
 from mininet.topo import Topo
 from ravel.log import logger
+import os
 
 class FattreeTopo( Topo ):
     "Fat tree topology with k pods."
@@ -10,7 +11,8 @@ class FattreeTopo( Topo ):
             if self.size <= 0 or self.size%2 != 0:
                 raise ValueError
         except ValueError:
-            logger.error('The pod number of fat tree must be a positive even number!')
+            print('The pod number of fat tree must be a positive even number!')
+            return
 
         cores = (self.size/2)**2
         aggs = (self.size/2) * self.size
@@ -53,4 +55,90 @@ class FattreeTopo( Topo ):
                     hostname = "h{0}".format(host_offset + self.size/2 * edge + h)
                     hostobj = self.addHost(hostname)
                     self.addLink(edge_sw, hostobj)
-topos = { 'fattree' : FattreeTopo }
+
+class ISPTopo( Topo ):
+    "ISP topology identified by its AS number"
+
+    def build( self, k, **_opts ):
+        self.asNumLst=[]
+        pyPath = os.path.dirname(os.path.abspath("__file__"))
+        self.ISPTopoPath = os.path.join(pyPath, 'ISP_topo')
+        try:
+            #asNumFile = open(os.path.join(self.ISPTopoPath, 'stat'))
+            testPath = os.path.join(self.ISPTopoPath, 'stat.txt')
+            asNumFile = open('/Users/zhijia/ravel/topo/ISP_topo/stat.txt')
+            asNumFile.readline()
+            for line in asNumFile:
+                for word in line.split():
+                    self.asNumLst.append(int(word))
+                    break
+        except Exception, e:
+            logger.error('unable to parse stat file: %s', e)
+            return
+
+        try:
+            self.asNum = int(k)
+            if self.asNum not in self.asNumLst:
+                raise ValueError
+        except ValueError:
+            print('Invalid AS number: %s!', e)
+            print('Please use the following available AS number:')
+            for i in self.asNumLst:
+                print(i)
+            return
+
+        switches = {}
+        nodeMp = {}
+        sidLst = []
+        nidLst = []
+        nodeNmLst = []
+
+        nodeFileNm = '{0}_nodes.txt'.format(self.asNum)
+        edgeFileNm = '{0}_edges.txt'.format(self.asNum)
+        try:
+            nodeFile = open(os.path.join(self.ISPTopoPath, nodeFileNm))
+        except Exception, e:
+            logger.error('Unable to open nodes file: ', e)
+            return
+        try:
+            edgeFile = open(os.path.join(self.ISPTopoPath, edgeFileNm))
+        except Exception, e:
+            logger.error('Unable to open edges file: ', e)
+            return
+
+        for line in nodeFile:
+            for word in line.split():
+                try:
+                    nodeMp[int(word)] = 's{0}'.format(word)
+                    nodeNmLst.append('s{0}'.format(word))
+                except Exception, e:
+                    logger.error("Unable to parse node number '{0}': ".format(word), e)
+                    return
+                break 
+
+        for line in edgeFile:
+            line=line.rstrip()
+            words = line.split()
+            if len(words) != 2:
+                logger.error("Unrecognized format of edges file!")
+                return
+            try:
+                if int(words[0]) not in nodeMp.keys():
+                    logger.error("An edge connects to a nonexist switch {0} that is not exist!".format(words[0]))
+                    return
+                if int(words[1]) not in nodeMp.keys():
+                    logger.error("An edge connects to a nonexist switch {0} that is not exist!".format(words[1]))
+                    return
+                sidLst.append(int(words[0]))
+                nidLst.append(int(words[1]))
+            except Exception, e:
+                logger.warning("Unable to parse edge from switch '{0}' to switch '{1}'".format(words[0],words[1]), e)
+                return
+        
+        for sw in nodeNmLst:
+            switches[sw] = self.addSwitch(sw)
+
+        for i in range(len(sidLst)):
+            self.addLink(switches[nodeMp[sidLst[i]]], switches[nodeMp[nidLst[i]]])
+
+topos = { 'fattree' : FattreeTopo, 'isp': ISPTopo}
