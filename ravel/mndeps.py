@@ -9,12 +9,16 @@ import re
 from mininet.topo import (SingleSwitchTopo, LinearTopo,
                           SingleSwitchReversedTopo)
 from mininet.topolib import TreeTopo
+from topo.topolib import (FattreeTopo, ISPTopo)
 from mininet.util import buildTopo
+
 
 TOPOS = { "linear": LinearTopo,
           "reversed": SingleSwitchReversedTopo,
           "single": SingleSwitchTopo,
-          "tree": TreeTopo
+          "tree": TreeTopo,
+          "fattree": FattreeTopo,
+          "isp": ISPTopo
       }
 
 def setCustom(name, value):

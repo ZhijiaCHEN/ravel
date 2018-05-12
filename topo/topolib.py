@@ -1,6 +1,6 @@
 from mininet.topo import Topo
 from ravel.log import logger
-import os
+import os, sys
 
 class FattreeTopo( Topo ):
     "Fat tree topology with k pods."
@@ -56,17 +56,16 @@ class FattreeTopo( Topo ):
                     hostobj = self.addHost(hostname)
                     self.addLink(edge_sw, hostobj)
 
+
 class ISPTopo( Topo ):
     "ISP topology identified by its AS number"
 
     def build( self, k, **_opts ):
         self.asNumLst=[]
-        pyPath = os.path.dirname(os.path.abspath("__file__"))
+        pyPath = os.path.dirname(os.path.abspath(__file__))
         self.ISPTopoPath = os.path.join(pyPath, 'ISP_topo')
         try:
-            #asNumFile = open(os.path.join(self.ISPTopoPath, 'stat'))
-            testPath = os.path.join(self.ISPTopoPath, 'stat.txt')
-            asNumFile = open('/Users/zhijia/ravel/topo/ISP_topo/stat.txt')
+            asNumFile = open(os.path.join(self.ISPTopoPath, 'stat.txt'))
             asNumFile.readline()
             for line in asNumFile:
                 for word in line.split():
@@ -76,16 +75,13 @@ class ISPTopo( Topo ):
             logger.error('unable to parse stat file: %s', e)
             return
 
-        try:
-            self.asNum = int(k)
-            if self.asNum not in self.asNumLst:
-                raise ValueError
-        except ValueError:
-            print('Invalid AS number: %s!', e)
+        self.asNum = int(k)
+        if self.asNum not in self.asNumLst:
+            print('Invalid AS number: {0}!'.format(self.asNum))
             print('Please use the following available AS number:')
             for i in self.asNumLst:
                 print(i)
-            return
+            raise Exception
 
         switches = {}
         nodeMp = {}
@@ -98,12 +94,12 @@ class ISPTopo( Topo ):
         try:
             nodeFile = open(os.path.join(self.ISPTopoPath, nodeFileNm))
         except Exception, e:
-            logger.error('Unable to open nodes file: ', e)
+            logger.error('Unable to open nodes file: %s', e)
             return
         try:
             edgeFile = open(os.path.join(self.ISPTopoPath, edgeFileNm))
         except Exception, e:
-            logger.error('Unable to open edges file: ', e)
+            logger.error('Unable to open edges file: %s', e)
             return
 
         for line in nodeFile:
@@ -112,7 +108,7 @@ class ISPTopo( Topo ):
                     nodeMp[int(word)] = 's{0}'.format(word)
                     nodeNmLst.append('s{0}'.format(word))
                 except Exception, e:
-                    logger.error("Unable to parse node number '{0}': ".format(word), e)
+                    logger.error("Unable to parse node number '{0}': ".format(word))
                     return
                 break 
 
@@ -121,19 +117,19 @@ class ISPTopo( Topo ):
             words = line.split()
             if len(words) != 2:
                 logger.error("Unrecognized format of edges file!")
-                return
+                raise Exception
             try:
                 if int(words[0]) not in nodeMp.keys():
                     logger.error("An edge connects to a nonexist switch {0} that is not exist!".format(words[0]))
-                    return
+                    raise Exception
                 if int(words[1]) not in nodeMp.keys():
                     logger.error("An edge connects to a nonexist switch {0} that is not exist!".format(words[1]))
-                    return
+                    raise Exception
                 sidLst.append(int(words[0]))
                 nidLst.append(int(words[1]))
-            except Exception, e:
-                logger.warning("Unable to parse edge from switch '{0}' to switch '{1}'".format(words[0],words[1]), e)
-                return
+            except ValueError, e:
+                logger.error("Unable to parse edge from switch '{0}' to switch '{1}'".format(words[0],words[1]))
+                return None
         
         for sw in nodeNmLst:
             switches[sw] = self.addSwitch(sw)
