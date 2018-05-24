@@ -1,106 +1,113 @@
-DROP TABLE IF EXISTS orch;
-
+DROP TABLE IF EXISTS orch CASCADE;
 CREATE TABLE orch (
     app varchar,
     priority int,
-    violated boolean,
     PRIMARY KEY (app,
     priority)
 );
 
-CREATE view orched_apps as select disdinct app from orch;
+CREATE OR REPLACE view orched_apps as select distinct app from orch;
+
+CREATE OR REPLACE FUNCTION get_violation_status()
+RETURNS TABLE (
+    app VARCHAR,
+    violated BOOLEAN
+) AS
+    $$
+    #variable_conflict use_variable
+    declare
+        vioTable varchar;
+    begin
+        for app in (select orched_apps.app from orched_apps) loop
+            violated := FALSE;
+            if (select count(*) from app_violation where app_violation.app = app) > 0 then
+                for vioTable in (select violation from app_violation where app_violation.app = app) loop
+                    EXECUTE format('SELECT (SELECT COUNT(*) FROM %I) > 0', vioTable) INTO violated;
+                    if violated then
+                        EXIT;
+                    end if;
+                end loop;
+            else
+                EXECUTE format('SELECT (SELECT COUNT(*) FROM %I) > 0', app || '_violation') INTO violated;
+            end if;
+            RETURN NEXT;
+        end loop;
+    end;
+    $$
+LANGUAGE PLPGSQL;
+
+CREATE OR REPLACE VIEW violation_status AS SELECT * FROM get_violation_status();
+
 
 CREATE or replace function orch_run() returns void as
-$$
-declare
-    nextApp varchar;
-    nextClock int;
-begin
-    with select * from orch where violated as candidates select app into nextApp from candidates where priority = (select max(priority) from candidates) limit 1;
-    select max(counts)+1 into nextClock from clock;
-    insert into p_nextApp values (nextClock, true);
-end;
-$$
+    $$
+    declare
+        nextApp varchar;
+        nextClock int;
+    begin
+        with candidates as (select orch.app, priority, violated from orch INNER JOIN violation_status ON orch.app = violation_status.app where violated) select app into nextApp from candidates where priority = (select max(priority) from candidates) limit 1;
+        IF nextApp IS NOT NULL THEN
+            select max(counts)+1 into nextClock from clock;
+            EXECUTE format('INSERT INTO %I VALUES ($1, $2)', 'p_'|| nextApp) USING nextClock, True;
+        END IF;
+    end;
+    $$
 language plpgsql;
 
-CREATE or replace function update_violation() returns trigger as
-$$
-#variable_conflict use_variable
-declare
-    app varchar;
-    vioTable varchar;
-    vioStatus boolean;
-begin
-    for app in (select app from orched_apps) loop
-        vioStatus := false;
-        if (select count(*) from app_violation where app_violation.app = app) > 0 then
-            for vioTable in (select violation from app_violation where app_violation.app = app) loop
-                if (select count(*) from vioTable) > 0 then
-                    vioStatus := true;
-                    break;
-                end if;
+CREATE or replace function app_action() returns trigger as
+    $$
+    declare
+        vioTable varchar;
+    begin
+        if (select count(*) from app_violation where app = TG_ARGV[0]) > 0 then
+            for vioTable in (select violation from app_violation where app = TG_ARGV[0]) loop
+                EXECUTE format('delete from %I;', vioTable);
             end loop;
         else
-            if (select count(*) from app_violation) > 0 then
-                vioStatus := true;
-            end if;
+            EXECUTE format('delete from %I;', TG_ARGV[0] || '_violation');
         end if;
-        update orch set violated = vioStatus;
-    end loop;
-end;
-$$
-language plpgsql;
-
-CREATE or replace function app_action(app varchar) returns trigger as
-$$
-#variable_conflict use_variable
-declare
-    vioTable varchar
-begin
-    if (select count(*) from app_violation where app_violation.app = app) > 0 then
-        for vioTable in (select violation from app_violation where app_violation.app = app) loop
-            delete from vioTable;
-        end loop;
-    else
-        delete from app_violation;
-    end if;
-    update p_app set active = false where counts = new.counts;
-    perform update_violation();
-    perform orch_run();
-end;
-$$
+        EXECUTE format('UPDATE %I set active = FALSE WHERE counts = %s', 'p_' || TG_ARGV[0], NEW.counts);
+        INSERT INTO clock VALUES(NEW.counts);
+        perform orch_run();
+        RETURN NULL;
+    end;
+    $$
 language plpgsql;
 
 CREATE or replace function load_app() returns trigger as
-$$
-begin
-    drop table if exists p_new.app cascade;
-    CREATE table p_new.app
-    (
-        counts int,
-        active boolean,
-        PRIMARY KEY(counts)
-    );
-    
-    CREATE trigger activate_new.app after insert on p_new.app
-    where new.active
-    execute function app_action(new.app);
-end;
-$$
+    $$
+    DECLARE
+        loadSql VARCHAR;
+    begin
+        loadSql :=
+            'DROP TABLE IF EXISTS %1$I CASCADE;' || 
+            'CREATE TABLE %1$I
+            (
+                counts int,
+                active boolean,
+                PRIMARY KEY(counts)
+            );' ||
+            'CREATE trigger %2$s AFTER INSERT ON %1$I FOR EACH ROW WHEN (NEW.active) EXECUTE PROCEDURE app_action(%3$s);';
+        EXECUTE format(loadSql, 'p_' || NEW.app, 'activate_' || NEW.app, NEW.app);
+        RETURN NULL;
+    end;
+    $$
 language plpgsql;
 
-drop trigger add_app if exists on orch;
+drop trigger if exists add_app on orch;
 CREATE trigger add_app after insert on orch
-execute function load_app;
+FOR EACH ROW
+execute PROCEDURE load_app();
 
 CREATE or replace function unload_app() returns trigger as
-$$
-begin
-    drop table if exists p_old.app cascade;
-end;
-$$
+    $$
+    begin
+        EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', 'p_' || OLD.app);
+        RETURN NULL;
+    end;
+    $$
 language plpgsql;
 
-drop trigger del_app if exists on orch;
+drop trigger if exists del_app on orch;
 CREATE trigger del_app after delete on orch
-execute function unload_app;
+execute PROCEDURE unload_app();
