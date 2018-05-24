@@ -85,8 +85,7 @@ class ISPTopo( Topo ):
 
         switches = {}
         nodeMp = {}
-        sidLst = []
-        nidLst = []
+        link = []
         nodeNmLst = []
 
         nodeFileNm = '{0}_nodes.txt'.format(self.asNum)
@@ -125,8 +124,10 @@ class ISPTopo( Topo ):
                 if int(words[1]) not in nodeMp.keys():
                     logger.error("An edge connects to a nonexist switch {0} that is not exist!".format(words[1]))
                     raise Exception
-                sidLst.append(int(words[0]))
-                nidLst.append(int(words[1]))
+                if int(words[0]) != int(words[1]):
+                    if ((int(words[0]), int(words[1])) not in link) and ((int(words[1]), int(words[0])) not in link):
+                        #Edges in the edge file are unidirectional, but Ravel takes link in the topology as bidirectional. So, only one link is added for every edge.
+                        link.append((int(words[0]), int(words[1])))
             except ValueError, e:
                 logger.error("Unable to parse edge from switch '{0}' to switch '{1}'".format(words[0],words[1]))
                 return None
@@ -134,7 +135,7 @@ class ISPTopo( Topo ):
         for sw in nodeNmLst:
             switches[sw] = self.addSwitch(sw)
 
-        for i in range(len(sidLst)):
-            self.addLink(switches[nodeMp[sidLst[i]]], switches[nodeMp[nidLst[i]]])
+        for i in range(len(link)):
+            self.addLink(switches[nodeMp[link[i][0]]], switches[nodeMp[link[i][1]]])
 
 topos = { 'fattree' : FattreeTopo, 'isp': ISPTopo}
