@@ -61,11 +61,11 @@ class Topo( object ):
         self.g.add_edge(node1, node2, **opts)
 
     def nodes( self ):
-        "Return a list of nodes in graph"
+        """Return a list of nodes in graph"""
         return self.g.vs["name"]
 
     def isSwitch( self, n ):
-        "Returns true if node is a switch."
+        """Return true if node is a switch."""
         return self.g.vs.find(name=n)['isSwitch']
 
     def switches( self, sort=True ):
@@ -75,12 +75,11 @@ class Topo( object ):
 
     def hosts( self, sort=True ):
         """Return a list of hosts."""
-        #return [ n for n in self.nodes() if not self.isSwitch( n ) ]
         return self.g.vs.select(isSwitch=False)["name"]
 
     def links( self ):
         """Return a list of links"""
-        return list( self.g.get_edgelist())
+        return [(self.g.vs[e[0]]["name"], self.g.vs[e[1]]["name"]) for e in self.g.get_edgelist()]
 
     def addPort( self, src, dst, sport=None, dport=None ):
         """Generate port mapping for new edge.
@@ -100,6 +99,49 @@ class Topo( object ):
         ports[ src ][ sport ] = ( dst, dport )
         ports[ dst ][ dport ] = ( src, sport )
         return sport, dport
+
+    def port( self, src, dst ):
+        """Get port numbers.
+            src: source switch name
+            dst: destination switch name
+            returns: tuple (sport, dport), where
+                sport = port on source switch leading to the destination switch
+                dport = port on destination switch leading to the source switch"""
+        e = self.g.es.find(node1_in=[src,dst], node2_in=[src,dst])
+        (sport, dport) = (e["port1"], e["port2"]) if e["node1"] == src else (e["port2"], e["port1"])
+        return (sport, dport)
+
+    def _linkEntry( self, src, dst, key=None ):
+        """Helper function: return link entry and key."""
+        entry = self.g.es.find(node1_in=[src,dst], node2_in=[src,dst]).attributes()
+        if key is None:
+            key = min( entry )
+        return entry, key
+
+    def linkInfo( self, src, dst, key=None ):
+        """Return link metadata dict
+           We use simple graph, a (src,dst) tuple maps to one edge if exists."""
+        #entry, key = self._linkEntry( src, dst, key )
+        return self.g.es.find(node1_in=[src,dst], node2_in=[src,dst]).attributes()
+
+    def setlinkInfo( self, src, dst, info, key=None ):
+        """Set link metadata dict"""
+        edgeIdx = self.g.es.find(node1_in=[src,dst], node2_in=[src,dst]).index
+        for k in info.keys():
+            self.g.es[edgeIdx][k] = info[k]
+
+    def nodeInfo( self, name ):
+        """Return metadata (dict) for node"""
+        info = self.g.vs.find(name_eq=name).attributes()
+        info.pop('name', None)#the name attribute will cause multiple value assigment for a key word argument 'name' in Mininet, it's redundant anyway.
+        return info
+
+    def setNodeInfo( self, name, info ):
+        "Set metadata (dict) for node"
+        self.g.node[ name ] = info
+        vertexIdx = self.g.vs.find(name_eq=name).index
+        for k in info.keys():
+            self.g.vs[vertexIdx][k] = info[k]
 
 class SingleSwitchTopo( Topo ):
     "Single switch connected to k hosts."
