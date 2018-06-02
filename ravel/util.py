@@ -85,6 +85,34 @@ def resource_file(name=None):
 
     return os.path.abspath(os.path.join(install_path, name))
 
+def splitArgs( argstr ):
+    """Split argument string into usable python arguments
+       argstr: argument string with format fn,arg2,kw1=arg3...
+       returns: fn, args, kwargs
+       This function is adapted from Mininet (https://github.com/mininet/mininet/blob/8af3f28b67ca27077d8082ae25c4800870df6109/mininet/util.py#L511)."""
+
+    def makeNumeric( s ):
+        "Convert string to int or float if numeric."
+        try:
+            return int(s)
+        except ValueError:
+            try:
+                return float(s)
+            except ValueError:
+                return s
+
+    split = argstr.split( ',' )
+    fn = split[ 0 ]
+    params = split[ 1: ]
+    # Convert int and float args; removes the need for function
+    # to be flexible with input arg formats.
+    args = [ makeNumeric( s ) for s in params if '=' not in s ]
+    kwargs = {}
+    for s in [ p for p in params if '=' in p ]:
+        key, val = s.split( '=', 1 )
+        kwargs[ key ] = makeNumeric( val )
+    return fn, args, kwargs
+
 class ConfigParameters(object):
     "Class containing parameters parsed from Ravel's configuration file"
     def __init__(self):

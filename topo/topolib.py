@@ -1,8 +1,190 @@
-from mininet.topo import Topo
+from igraph import Graph
 from ravel.log import logger
 import os, sys
 
-class FattreeTopo( Topo ):
+class Topo( object ):
+
+    def __init__( self, *args, **params ):
+        """Topo object.
+           Optional named parameters:
+           hinfo: default host options
+           sopts: default switch options
+           lopts: default link options
+           calls build()"""
+        self.g = Graph()
+        self.hopts = params.pop( 'hopts', {} )
+        self.sopts = params.pop( 'sopts', {} )
+        self.lopts = params.pop( 'lopts', {} )
+        # ports[src][dst][sport] is port on dst that connects to src
+        self.ports = {}
+        self.build( *args, **params )
+
+    def build( self, *args, **params ):
+        "Override this method to build your topology."
+        pass
+
+    def addNode( self, name, **opts ):
+        """Add Node to graph.
+           name: name
+           opts: node options
+           returns: node name"""
+        self.g.add_vertex( name, **opts )
+        return name
+
+    def addHost( self, name, **opts ):
+        """Convenience method: Add host to graph.
+           name: host name
+           opts: host options
+           returns: host name"""
+        if not opts and self.hopts:
+            opts = self.hopts
+        return self.addNode( name, isSwitch=False, **opts )
+
+    def addSwitch( self, name, **opts ):
+        """Convenience method: Add switch to graph.
+           name: switch name
+           opts: switch options
+           returns: switch name"""
+        if not opts and self.sopts:
+            opts = self.sopts
+        return self.addNode( name, isSwitch=True, **opts )
+
+    def addLink( self, node1, node2, port1=None, port2=None, **opts ):
+        """node1, node2: nodes to link together
+           port1, port2: ports (optional)
+           opts: link options (optional)"""
+        if not opts and self.lopts:
+            opts = self.lopts
+        port1, port2 = self.addPort( node1, node2, port1, port2 )
+        opts = dict( opts )
+        opts.update( node1=node1, node2=node2, port1=port1, port2=port2 )
+        self.g.add_edge(node1, node2, **opts)
+
+    def nodes( self ):
+        "Return a list of nodes in graph"
+        return self.g.vs["name"]
+
+    def isSwitch( self, n ):
+        "Returns true if node is a switch."
+        return self.g.vs.find(name=n)['isSwitch']
+
+    def switches( self, sort=True ):
+        """Return a list of switches."""
+        #return [ n for n in self.nodes() if self.isSwitch( n ) ]
+        return self.g.vs.select(isSwitch=True)["name"]
+
+    def hosts( self, sort=True ):
+        """Return a list of hosts."""
+        #return [ n for n in self.nodes() if not self.isSwitch( n ) ]
+        return self.g.vs.select(isSwitch=False)["name"]
+
+    def links( self ):
+        """Return a list of links"""
+        return list( self.g.get_edgelist())
+
+    def addPort( self, src, dst, sport=None, dport=None ):
+        """Generate port mapping for new edge.
+            src: source switch name
+            dst: destination switch name"""
+        # Initialize if necessary
+        ports = self.ports
+        ports.setdefault( src, {} )
+        ports.setdefault( dst, {} )
+        # New port: number of outlinks + base
+        if sport is None:
+            src_base = 1 if self.isSwitch( src ) else 0
+            sport = len( ports[ src ] ) + src_base
+        if dport is None:
+            dst_base = 1 if self.isSwitch( dst ) else 0
+            dport = len( ports[ dst ] ) + dst_base
+        ports[ src ][ sport ] = ( dst, dport )
+        ports[ dst ][ dport ] = ( src, sport )
+        return sport, dport
+
+class SingleSwitchTopo( Topo ):
+    "Single switch connected to k hosts."
+
+    def build( self, k=2, **_opts ):
+        "k: number of hosts"
+        self.k = k
+        switch = self.addSwitch( 's1' )
+        for h in range( 1, k+1 ):
+            host = self.addHost( 'h%s' % h )
+            self.addLink( host, switch )
+
+class SingleSwitchReversedTopo( Topo ):
+    """Single switch connected to k hosts, with reversed ports.
+       The lowest-numbered host is connected to the highest-numbered port.
+       Useful to verify that Mininet properly handles custom port
+       numberings."""
+
+    def build( self, k=2 ):
+        "k: number of hosts"
+        self.k = k
+        switch = self.addSwitch( 's1' )
+        for h in range( 1, k+1 ):
+            host = self.addHost( 'h%s' % h )
+            self.addLink( host, switch,
+                          port1=0, port2=( k - h + 1 ) )
+
+class MinimalTopo( SingleSwitchTopo ):
+    "Minimal topology with two hosts and one switch"
+    def build( self ):
+        return SingleSwitchTopo.build( self, k=2 )
+
+class LinearTopo( Topo ):
+    "Linear topology of k switches, with n hosts per switch."
+
+    def build( self, k=2, n=1, **_opts):
+        """k: number of switches
+           n: number of hosts per switch"""
+        self.k = k
+        self.n = n
+
+        if n == 1:
+            genHostName = lambda i, j: 'h%s' % i
+        else:
+            genHostName = lambda i, j: 'h%ss%d' % ( j, i )
+
+        lastSwitch = None
+        for i in range( 1, k+1 ):
+            # Add switch
+            switch = self.addSwitch( 's%s' % i )
+            # Add hosts to switch
+            for j in range( 1, n+1 ):
+                host = self.addHost( genHostName( i, j ) )
+                self.addLink( host, switch )
+            # Connect switch to previous
+            if lastSwitch:
+                self.addLink( switch, lastSwitch )
+            lastSwitch = switch
+
+class TreeTopo( Topo ):
+    "Topology for a tree network with a given depth and fanout."
+
+    def build( self, depth=1, fanout=2 ):
+        # Numbering:  h1..N, s1..M
+        self.hostNum = 1
+        self.switchNum = 1
+        # Build topology
+        self.addTree( depth, fanout )
+
+    def addTree( self, depth, fanout ):
+        """Add a subtree starting with node n.
+           returns: last node added"""
+        isSwitch = depth > 0
+        if isSwitch:
+            node = self.addSwitch( 's%s' % self.switchNum )
+            self.switchNum += 1
+            for _ in range( fanout ):
+                child = self.addTree( depth - 1, fanout )
+                self.addLink( node, child )
+        else:
+            node = self.addHost( 'h%s' % self.hostNum )
+            self.hostNum += 1
+        return node
+
+class FatTreeTopo( Topo ):
     "Fat tree topology with k pods."
 
     def build( self, k=4, **_opts ):
@@ -55,7 +237,6 @@ class FattreeTopo( Topo ):
                     hostname = "h{0}".format(host_offset + self.size/2 * edge + h)
                     hostobj = self.addHost(hostname)
                     self.addLink(edge_sw, hostobj)
-
 
 class ISPTopo( Topo ):
     "ISP topology identified by its AS number"
@@ -138,4 +319,3 @@ class ISPTopo( Topo ):
         for i in range(len(link)):
             self.addLink(switches[nodeMp[link[i][0]]], switches[nodeMp[link[i][1]]])
 
-topos = { 'fattree' : FattreeTopo, 'isp': ISPTopo}

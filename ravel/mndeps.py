@@ -1,23 +1,19 @@
 """
-Mininet functions for creating topologies from command-line parameters.
+Creating topologies from command-line parameters.
 """
 
 import os
 import re
-
-# NOTE: newer mininet version also has MinimalTopo, TorusTopo
-from mininet.topo import (SingleSwitchTopo, LinearTopo,
-                          SingleSwitchReversedTopo)
-from mininet.topolib import TreeTopo
-from topo.topolib import (FattreeTopo, ISPTopo)
-from mininet.util import buildTopo
+from ravel.util import splitArgs
+from topo.topolib import (SingleSwitchTopo, SingleSwitchReversedTopo, MinimalTopo, LinearTopo, TreeTopo, FatTreeTopo, ISPTopo)
 
 
-TOPOS = { "linear": LinearTopo,
+TOPOS = { "minimal": MinimalTopo,
+          "linear": LinearTopo,
           "reversed": SingleSwitchReversedTopo,
           "single": SingleSwitchTopo,
           "tree": TreeTopo,
-          "fattree": FattreeTopo,
+          "fattree": FatTreeTopo,
           "isp": ISPTopo
       }
 
@@ -51,10 +47,13 @@ def custom(value):
         else:
             print "Could not find custom file", filename
 
-def build(opts):
-    """Build Mininet topology from custom and topo parameters
-       opts: Mininet topology parameters"""
+def build(topoStr):
+    """Build topology from string with format (object, arg1, arg2,...).
+       topoStr: topology string"""
     try:
-        return buildTopo(TOPOS, opts)
+        topo, args, kwargs = splitArgs( topoStr )
+        if topo not in TOPOS:
+            raise Exception( 'Invalid topo name %s' % topo )
+        return TOPOS[ topo ]( *args, **kwargs )
     except Exception:
         return None
