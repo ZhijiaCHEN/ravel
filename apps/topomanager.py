@@ -15,6 +15,8 @@ class TopoManagerConsole(AppConsole):
             print "Invalid mininet topology: ", topo
             return
         self.topo = topo
+        self.env.loaded = {} #clear loaded apps records
+        self.env.apps['orch'].console.ordering = None #clear ordering records
         self.env.stop()
         self.db.init()
         self.db.cleaned = True

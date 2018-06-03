@@ -128,6 +128,9 @@ class OrchConsole(AppConsole):
 
     def do_list(self, line):
         "List orchestrated applications and their priority"
+        if self.ordering is None:
+            print "No app under orchestration."
+            return
         print "Priority: low -> high"
         for num, app in enumerate(self.ordering):
             print "   {0}: {1}".format(num, app)

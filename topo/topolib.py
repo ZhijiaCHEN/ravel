@@ -49,10 +49,11 @@ class Topo( object ):
             opts = self.sopts
         return self.addNode( name, isSwitch=True, **opts )
 
-    def addLink( self, node1, node2, port1=None, port2=None, **opts ):
+    def addLink( self, node1, node2, port1=None, port2=None, key=None, **opts ):
         """node1, node2: nodes to link together
            port1, port2: ports (optional)
-           opts: link options (optional)"""
+           opts: link options (optional)
+           key: useless, kept for compatibility with mininet"""
         if not opts and self.lopts:
             opts = self.lopts
         port1, port2 = self.addPort( node1, node2, port1, port2 )
@@ -60,9 +61,12 @@ class Topo( object ):
         opts.update( node1=node1, node2=node2, port1=port1, port2=port2 )
         self.g.add_edge(node1, node2, **opts)
 
-    def nodes( self ):
+    def nodes( self, sort=True ):
         """Return a list of nodes in graph"""
-        return self.g.vs["name"]
+        nodes = self.g.vs["name"]
+        if sort:
+            nodes.sort()
+        return nodes
 
     def isSwitch( self, n ):
         """Return true if node is a switch."""
@@ -71,15 +75,38 @@ class Topo( object ):
     def switches( self, sort=True ):
         """Return a list of switches."""
         #return [ n for n in self.nodes() if self.isSwitch( n ) ]
-        return self.g.vs.select(isSwitch=True)["name"]
+        switches = self.g.vs.select(isSwitch=True)["name"]
+        if sort:
+            switches.sort()
+        return switches
 
     def hosts( self, sort=True ):
         """Return a list of hosts."""
-        return self.g.vs.select(isSwitch=False)["name"]
+        hosts =  self.g.vs.select(isSwitch=False)["name"]
+        if sort:
+            hosts.sort()
+        return hosts
 
-    def links( self ):
-        """Return a list of links"""
-        return [(self.g.vs[e[0]]["name"], self.g.vs[e[1]]["name"]) for e in self.g.get_edgelist()]
+    def links( self, sort=False, withKeys=False, withInfo=False ):
+        """Return a list of links
+           sort: sort links alphabetically, preserving (src, dst) order
+           withKeys: return link keys
+           withInfo: return link info
+           returns: list of ( src, dst [,key, info ] )"""
+        
+        if withKeys:
+            if withInfo:
+                links = [(self.g.vs[e[0]]["name"], self.g.vs[e[1]]["name"], e, self.g.es[self.g.get_eid(e[0],e[1])].attributes()) for e in self.g.get_edgelist()]
+            else:
+                links = [(self.g.vs[e[0]]["name"], self.g.vs[e[1]]["name"], e) for e in self.g.get_edgelist()]
+        else:
+            if withInfo:
+                links = [(self.g.vs[e[0]]["name"], self.g.vs[e[1]]["name"], self.g.es[self.g.get_eid(e[0],e[1])].attributes()) for e in self.g.get_edgelist()]
+            else:
+                links = [(self.g.vs[e[0]]["name"], self.g.vs[e[1]]["name"]) for e in self.g.get_edgelist()]
+        if sort:
+            links.sort()
+        return links
 
     def addPort( self, src, dst, sport=None, dport=None ):
         """Generate port mapping for new edge.
