@@ -236,10 +236,13 @@ def RavelCLI(opts):
     if opts.custom:
         ravel.mndeps.custom(opts.custom)
 
-    topo = ravel.mndeps.build(opts.topo)
-    if topo is None:
-        print "Invalid mininet topology", opts.topo
-        return
+    if opts.topo:
+        topo = ravel.mndeps.build(opts.topo)
+        if topo is None:
+            print "Invalid mininet topology", opts.topo
+            return
+    else: 
+        topo = ravel.mndeps.build("empty")
 
     if opts.script is not None and not os.path.isfile(opts.script):
         print "{0}: no such script file".format(opts.script)

@@ -5,10 +5,11 @@ Creating topologies from command-line parameters.
 import os
 import re
 from ravel.util import splitArgs
-from topo.topolib import (SingleSwitchTopo, SingleSwitchReversedTopo, MinimalTopo, LinearTopo, TreeTopo, FatTreeTopo, ISPTopo)
+from topo.topolib import (EmptyTopo, SingleSwitchTopo, SingleSwitchReversedTopo, MinimalTopo, LinearTopo, TreeTopo, FatTreeTopo, ISPTopo)
 
 
-TOPOS = { "minimal": MinimalTopo,
+TOPOS = { "empty": EmptyTopo,
+          "minimal": MinimalTopo,
           "linear": LinearTopo,
           "reversed": SingleSwitchReversedTopo,
           "single": SingleSwitchTopo,
@@ -55,5 +56,6 @@ def build(topoStr):
         if topo not in TOPOS:
             raise Exception( 'Invalid topo name %s' % topo )
         return TOPOS[ topo ]( *args, **kwargs )
-    except Exception:
+    except Exception, e:
+        print e
         return None

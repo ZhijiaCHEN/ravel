@@ -170,6 +170,13 @@ class Topo( object ):
         for k in info.keys():
             self.g.vs[vertexIdx][k] = info[k]
 
+class EmptyTopo(Topo):
+    "Empty topology. This topology is to allow user to start Ravel without specifying any topology."
+
+    def build( self ):
+        self.g.vs["isSwitch"] = False
+        self.g.vs["name"]=None
+
 class SingleSwitchTopo( Topo ):
     "Single switch connected to k hosts."
 
