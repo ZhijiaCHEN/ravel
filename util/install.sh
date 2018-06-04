@@ -46,7 +46,10 @@ function mininet {
 }
 
 function postgres {
-    $install postgresql
+    codename=`lsb_release --codename | cut -f2`
+    sudo bash -c "echo 'deb http://apt.postgresql.org/pub/repos/apt/ $codename-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
+    $update
+    $install postgresql-10
 }
 
 function ravel {
@@ -69,7 +72,7 @@ function ravel {
     printf -- '\n\n' >&2
     printf -- 'Ravel requires either "trust" or "md5" authentication for\n' >&2
     printf -- '"postgres" and "all" users in PostgreSQL.  Please modify\n' >&2
-    printf -- 'the file /etc/postgresql/9.3/main/pg_hba.conf to:\n' >&2
+    printf -- 'the file /etc/postgresql/10/main/pg_hba.conf to:\n' >&2
     printf -- '     local    all    postgres    trust  #or md5\n' >&2
     printf -- '     local    all    all         trust  #or md5\n\n' >&2
 
@@ -77,7 +80,7 @@ function ravel {
     read -p "Set authentication method to 'trust'? [y/N] " response
     response=${response,,}
     if [[ $response =~ ^(yes|y) ]]; then
-	sudo sed -i -e '/^local/s/peer/trust/g' /etc/postgresql/9.3/main/pg_hba.conf
+	sudo sed -i -e '/^local/s/peer/trust/g' /etc/postgresql/10/main/pg_hba.conf
 	sudo service postgresql restart
     fi
 }
