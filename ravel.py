@@ -51,9 +51,9 @@ def optParser():
 
 if __name__ == "__main__":
     parser = optParser()
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
+    #if len(sys.argv) == 1:
+    #    parser.print_help()
+    #    sys.exit(0)
 
     opts, args = parser.parse_args()
     if args:
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         clean()
         sys.exit(0)
 
-    if not opts.topo:
-        parser.error("No topology specified")
+    #if not opts.topo:
+    #    parser.error("No topology specified")
 
     RavelCLI(opts)
