@@ -210,7 +210,7 @@ class MininetProvider(NetworkProvider):
 
         self.net = Mininet(topo,
                            controller=partial(RemoteController,
-                                              ip="127.0.0.1"))
+                               ip="127.0.0.1:6633"))
 
         super(MininetProvider, self).__init__(NetworkProvider.QueueId, db)
 
