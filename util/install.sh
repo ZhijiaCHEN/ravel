@@ -7,7 +7,7 @@ set -e
 set -o nounset
 
 SRC_DIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd -P )"
-MN_VERSION="2.2.0"
+MN_VERSION="2.2.2"
 
 DIST=Unknown
 test -e /etc/debian_version && DIST="Debian"
@@ -34,30 +34,31 @@ function all {
 function mininet {
     echo "Installing mininet..."
     $update
-    $install --quiet git
-
     cd "$SRC_DIR"
     git clone git://github.com/mininet/mininet
     cd mininet
     git checkout $MN_VERSION
+    sed -i 's/ iproute / iproute2 /g' util/install.sh #iproute package is deprecated
     ./util/install.sh -kmnvp
     cd "$SRC_DIR"
 
 }
 
 function postgres {
-    $install postgresql
+    sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+    $install wget ca-certificates gnupg2
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+    $update
+    $install postgresql-10
 }
 
 function ravel {
     $install python2.7 python-pip python-dev build-essential
     sudo pip install sqlalchemy sqlparse tabulate sysv_ipc
 
-    $addrepo ppa:georepublic/pgrouting
-    $update
     $install postgresql-contrib postgresql-client \
-	python-psycopg2 python-igraph postgis postgresql-plpython \
-	postgresql-9.5-pgrouting postgresql-9.5-plsh
+	python-psycopg2 python-igraph postgis postgresql-plpython-10 \
+	postgresql-10-pgrouting postgresql-10-plsh
 
     sudo -u postgres psql -c "CREATE DATABASE ravel;"
     sudo -u postgres psql -c "CREATE USER ravel WITH SUPERUSER;"
@@ -69,7 +70,7 @@ function ravel {
     printf -- '\n\n' >&2
     printf -- 'Ravel requires either "trust" or "md5" authentication for\n' >&2
     printf -- '"postgres" and "all" users in PostgreSQL.  Please modify\n' >&2
-    printf -- 'the file /etc/postgresql/9.3/main/pg_hba.conf to:\n' >&2
+    printf -- 'the file /etc/postgresql/10/main/pg_hba.conf to:\n' >&2
     printf -- '     local    all    postgres    trust  #or md5\n' >&2
     printf -- '     local    all    all         trust  #or md5\n\n' >&2
 
@@ -77,7 +78,7 @@ function ravel {
     read -p "Set authentication method to 'trust'? [y/N] " response
     response=${response,,}
     if [[ $response =~ ^(yes|y) ]]; then
-	sudo sed -i -e '/^local/s/peer/trust/g' /etc/postgresql/9.3/main/pg_hba.conf
+	sudo sed -i -e '/^local/s/peer/trust/g' /etc/postgresql/10/main/pg_hba.conf
 	sudo service postgresql restart
     fi
 }
