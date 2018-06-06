@@ -110,4 +110,5 @@ language plpgsql;
 
 drop trigger if exists del_app on orch;
 CREATE trigger del_app after delete on orch
+FOR EACH ROW
 execute PROCEDURE unload_app();
